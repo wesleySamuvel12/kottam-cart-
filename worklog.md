@@ -51,3 +51,17 @@ Work Log:
 Stage Summary:
 - Platform fully verified and interactive. Lint clean. Dev server runs on :3000.
 - AI is embedded as an operational intelligence layer across the full ecosystem (Weather → Demand → Farming → Supply → Pricing → Logistics → Customers → Payments → BI).
+
+---
+Task ID: 11
+Agent: main (orchestrator)
+Task: Add visible scrollbar to the sidebar
+
+Work Log:
+- Sidebar was using Radix ScrollArea which renders a near-invisible custom scrollbar (overlay, auto-hide).
+- Replaced ScrollArea with a native overflow-y-auto container (.koottam-sidebar-scroll) and removed the unused import.
+- Added persistent classic-scrollbar CSS in globals.css (rgba colors, width 10px, -webkit-appearance:none, scrollbar-gutter: stable, visible track + thumb + hover). Forces classic (non-overlay) rendering so the scrollbar is always visible and takes layout space.
+- Browser-verified: desktop sidebar scrollbarW=15px (was 0), reserved gutter stable. Mobile Sheet sidebar also shows the scrollbar (scrollbarW=15px). Lint clean, no errors.
+
+Stage Summary:
+- Sidebar now has a persistent, visible scrollbar on both desktop and mobile.

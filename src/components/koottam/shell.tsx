@@ -5,7 +5,6 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { NAV, NAV_GROUPS } from "@/components/koottam/nav";
 import { LOCATIONS } from "@/lib/koottam/data";
 import { ThemeToggle } from "@/components/koottam/theme-toggle";
@@ -52,7 +51,7 @@ export function KoottamShell({
           <p className="text-[10px] text-sidebar-foreground/60 leading-tight">AI Community Commerce</p>
         </div>
       </div>
-      <ScrollArea className="flex-1 koottam-scroll">
+      <div className="flex-1 min-h-0 overflow-y-auto koottam-sidebar-scroll">
         <nav className="px-2 py-3 space-y-4">
           {NAV_GROUPS.map((group) => (
             <div key={group}>
@@ -87,7 +86,7 @@ export function KoottamShell({
             </div>
           ))}
         </nav>
-      </ScrollArea>
+      </div>
       <div className="border-t border-sidebar-border p-3">
         <div className="rounded-lg bg-sidebar-accent/60 p-2.5">
           <p className="text-[10px] font-semibold text-sidebar-foreground/70 uppercase tracking-wide">Live Pilot</p>
