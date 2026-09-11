@@ -18,6 +18,9 @@ Work Log:
   - customer: Personal Shopping AI (predicted basket + budget optimizer + Tamil meal planner via LLM), Voice Assistant (ASR+TTS, Tamil/English)
   - intelligence: Group AI, Churn Prediction, TrustGuard, Payment Intelligence, Business Copilot (full chat with markdown), Growth Simulator (interactive sliders), Model Performance
   - strategy: Madurai Pilot AI, Impact AI, Expansion AI, Report Generator (PDF/CSV/Excel), Knowledge Center (LLM over docs)
+- Configured Supabase PostgreSQL database connection & @supabase/server SDK integration.
+- Implemented WhatsApp Customer Order Creation, AI Demand Analysis Farmer Cultivation Dispatch, and Real-Time Order Departure Notifications.
+- Fixed Vercel build configuration (Prisma Client generation & Next.js standalone NFT tracer resolution).
 - Every AI output supports Why / Evidence / Action / human override (Accept/Modify/Ignore) via InsightCard.
 - Data always labelled Actual / Estimated / Predicted / Demo.
 
