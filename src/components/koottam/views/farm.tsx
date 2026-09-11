@@ -63,8 +63,8 @@ import { toast } from "sonner";
 /* ====================== FARMER AI ====================== */
 export function FarmerView() {
   const [farmerId, setFarmerId] = React.useState(HARVEST_RECS[0].farmerId);
-  const rec = HARVEST_RECS.find((r) => r.farmerId === farmerId)!;
-  const farmer = getFarmer(farmerId)!;
+  const rec = HARVEST_RECS.find((r) => r.farmerId === farmerId) ?? HARVEST_RECS[0];
+  const farmer = getFarmer(farmerId) ?? FARMERS[0];
 
   return (
     <Panel>

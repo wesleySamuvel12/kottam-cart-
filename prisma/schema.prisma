@@ -9,7 +9,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -29,4 +29,153 @@ model Post {
   authorId  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Customer {
+  id             String            @id @default(cuid())
+  name           String
+  phone          String            @unique // E.164 normalized phone e.g. 919876543210
+  group          String
+  locationId     String            @default("madurai")
+  avgBasketValue Float             @default(300)
+  orderFreqDays  Int               @default(5)
+  lastOrderDays  Int               @default(0)
+  totalOrders    Int               @default(0)
+  churnProb      Float             @default(10)
+  status         String            @default("Active") // Active, At Risk, Dormant
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  orders         Order[]
+  sessions       WhatsAppSession[]
+  carts          WhatsAppCart[]
+  logs           WhatsAppLog[]
+}
+
+model Product {
+  id            String      @id
+  name          String
+  ta            String
+  category      String      @default("Vegetable")
+  unit          String      @default("kg")
+  costPrice     Float
+  sellPrice     Float
+  marketLow     Float
+  marketHigh    Float
+  shelfLifeDays Int         @default(7)
+  trend         String      @default("Stable")
+  trendPct      Float       @default(0)
+  available     Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  orderItems    OrderItem[]
+}
+
+model Group {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  hubId     String   @default("h1")
+  createdAt DateTime @default(now())
+}
+
+model Order {
+  id             String      @id // e.g. KC-10482
+  customerId     String
+  customerPhone  String
+  status         String      @default("Confirmed") // Confirmed, Preparing, Ready for Pickup, Collected, Completed, Cancelled
+  totalAmount    Float
+  subtotal       Float
+  deliveryCharge Float       @default(0)
+  pickupLocation String      @default("KottamCart Hub")
+  whatsappMsgRef String?
+  paymentStatus  String      @default("Pending") // Pending, Paid, Failed
+  paymentId      String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  customer       Customer    @relation(fields: [customerId], references: [id])
+  items          OrderItem[]
+}
+
+model OrderItem {
+  id          String   @id @default(cuid())
+  orderId     String
+  productId   String
+  productName String
+  quantity    Float
+  unit        String
+  unitPrice   Float
+  totalPrice  Float
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product     Product  @relation(fields: [productId], references: [id])
+}
+
+model WhatsAppSession {
+  id            String   @id @default(cuid())
+  phone         String   @unique
+  customerId    String?
+  state         String   @default("IDLE")
+  tempName      String?
+  tempGroup     String?
+  lastMessageId String?
+  updatedAt     DateTime @updatedAt
+  customer      Customer? @relation(fields: [customerId], references: [id])
+}
+
+model WhatsAppCart {
+  id         String   @id @default(cuid())
+  phone      String   @unique
+  customerId String?
+  itemsJson  String   @default("[]")
+  updatedAt  DateTime @updatedAt
+  customer   Customer? @relation(fields: [customerId], references: [id])
+}
+
+model WhatsAppLog {
+  id         String   @id @default(cuid())
+  messageId  String   @unique
+  phone      String
+  customerId String?
+  direction  String   @default("INBOUND") // INBOUND, OUTBOUND
+  type       String   @default("text") // text, button, list, status
+  body       String
+  status     String   @default("Sent") // Sent, Delivered, Read, Failed
+  error      String?
+  createdAt  DateTime @default(now())
+  customer   Customer? @relation(fields: [customerId], references: [id])
+}
+
+model Farmer {
+  id               String             @id @default(cuid())
+  name             String
+  phone            String             @unique // E.164 normalized phone e.g. 919876543201
+  whatsappNumber   String?
+  village          String             @default("Madurai")
+  crops            String             @default("tomato,onion,potato") // comma separated crop ids
+  preferredChannel String             @default("WHATSAPP") // WHATSAPP, SMS
+  whatsappEnabled  Boolean            @default(true)
+  smsEnabled       Boolean            @default(true)
+  status           String             @default("Active") // Active, Inactive
+  rating           Float              @default(4.8)
+  reliability      Float              @default(95.0)
+  capacityKg       Float              @default(150.0)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  logs             CommunicationLog[]
+}
+
+model CommunicationLog {
+  id            String    @id @default(cuid())
+  recipientType String    @default("FARMER") // CUSTOMER, FARMER
+  recipientId   String?
+  recipientName String?
+  phone         String
+  channel       String    @default("WHATSAPP") // WHATSAPP, SMS
+  purpose       String    @default("CROP_REQUIREMENT") // CROP_REQUIREMENT, ORDER_CONFIRMATION, ORDER_STATUS, BROADCAST
+  orderId       String?
+  cropDetails   String?   // JSON string of requirement items
+  messageId     String    @unique
+  body          String
+  status        String    @default("Sent") // Queued, Sent, Delivered, Read, Failed
+  error         String?
+  createdAt     DateTime  @default(now())
+  farmer        Farmer?   @relation(fields: [recipientId], references: [id])
 }

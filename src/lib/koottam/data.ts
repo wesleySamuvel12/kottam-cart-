@@ -251,6 +251,66 @@ export const HARVEST_RECS: HarvestRec[] = [
     totalRevenue: 1449,
     riskLevel: "Medium",
   },
+  {
+    farmerId: "f3",
+    items: [
+      { productId: "onion", confirmedKg: 90, predictedKg: 100, recommendedKg: 98, expectedRevenue: 2548, confidence: 94 },
+      { productId: "potato", confirmedKg: 60, predictedKg: 65, recommendedKg: 64, expectedRevenue: 1280, confidence: 91 },
+      { productId: "drumstick", confirmedKg: 30, predictedKg: 35, recommendedKg: 34, expectedRevenue: 1360, confidence: 88 },
+    ],
+    totalRevenue: 5188,
+    riskLevel: "Low",
+  },
+  {
+    farmerId: "f4",
+    items: [
+      { productId: "tomato", confirmedKg: 35, predictedKg: 40, recommendedKg: 38, expectedRevenue: 1064, confidence: 86 },
+      { productId: "beans", confirmedKg: 25, predictedKg: 28, recommendedKg: 27, expectedRevenue: 864, confidence: 82 },
+      { productId: "carrot", confirmedKg: 20, predictedKg: 22, recommendedKg: 21, expectedRevenue: 714, confidence: 84 },
+    ],
+    totalRevenue: 2642,
+    riskLevel: "Medium",
+  },
+  {
+    farmerId: "f5",
+    items: [
+      { productId: "brinjal", confirmedKg: 30, predictedKg: 34, recommendedKg: 32, expectedRevenue: 768, confidence: 89 },
+      { productId: "bhindi", confirmedKg: 25, predictedKg: 28, recommendedKg: 26, expectedRevenue: 780, confidence: 85 },
+      { productId: "drumstick", confirmedKg: 20, predictedKg: 25, recommendedKg: 24, expectedRevenue: 960, confidence: 87 },
+    ],
+    totalRevenue: 2508,
+    riskLevel: "Low",
+  },
+  {
+    farmerId: "f6",
+    items: [
+      { productId: "lemon", confirmedKg: 25, predictedKg: 30, recommendedKg: 28, expectedRevenue: 1232, confidence: 88 },
+      { productId: "banana", confirmedKg: 30, predictedKg: 32, recommendedKg: 30, expectedRevenue: 1080, confidence: 90 },
+      { productId: "curryleaf", confirmedKg: 15, predictedKg: 18, recommendedKg: 16, expectedRevenue: 64, confidence: 83 },
+    ],
+    totalRevenue: 2376,
+    riskLevel: "Low",
+  },
+  {
+    farmerId: "f7",
+    items: [
+      { productId: "ginger", confirmedKg: 20, predictedKg: 24, recommendedKg: 22, expectedRevenue: 1320, confidence: 87 },
+      { productId: "garlic", confirmedKg: 15, predictedKg: 18, recommendedKg: 16, expectedRevenue: 1280, confidence: 89 },
+      { productId: "onion", confirmedKg: 50, predictedKg: 55, recommendedKg: 52, expectedRevenue: 1352, confidence: 85 },
+    ],
+    totalRevenue: 3952,
+    riskLevel: "Medium",
+  },
+  {
+    farmerId: "f8",
+    items: [
+      { productId: "spinach", confirmedKg: 25, predictedKg: 22, recommendedKg: 20, expectedRevenue: 120, confidence: 82 },
+      { productId: "coriander", confirmedKg: 20, predictedKg: 25, recommendedKg: 24, expectedRevenue: 120, confidence: 86 },
+      { productId: "curryleaf", confirmedKg: 15, predictedKg: 18, recommendedKg: 16, expectedRevenue: 64, confidence: 84 },
+    ],
+    totalRevenue: 304,
+    riskLevel: "Low",
+  },
 ];
 
 export interface WasteRisk {
@@ -551,3 +611,24 @@ export function getWeather(locationId: string): WeatherData | undefined {
 export function inr(n: number): string {
   return "₹" + n.toLocaleString("en-IN");
 }
+
+// Database-backed sync helpers for KottamCart services
+export async function getDbProducts() {
+  const { db } = await import("../db");
+  return db.product.findMany({ where: { available: true } });
+}
+
+export async function getDbCustomers() {
+  const { db } = await import("../db");
+  return db.customer.findMany();
+}
+
+export async function getDbOrders(customerId?: string) {
+  const { db } = await import("../db");
+  return db.order.findMany({
+    where: customerId ? { customerId } : undefined,
+    orderBy: { createdAt: "desc" },
+    include: { items: true, customer: true },
+  });
+}
+
