@@ -199,7 +199,7 @@ export function KoottamShell({
 
       {/* Floating WhatsApp Action Button */}
       <a
-        href="https://wa.me/919942445964?text=Hi%20KottamCart%2C%20I%20want%20to%20place%20an%20order"
+        href={`https://wa.me/919942445964?text=${encodeURIComponent("Hi KottamCart 👋\n\nI would like to place an order for fresh produce.\n\nPlease share today's catalog.")}`}
         target="_blank"
         rel="noopener noreferrer"
         aria-label="Order on WhatsApp"
