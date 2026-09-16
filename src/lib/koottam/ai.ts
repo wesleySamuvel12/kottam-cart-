@@ -1,5 +1,5 @@
 // Koottam Cart — AI orchestration helpers (server-only).
-// Uses z-ai-web-dev-sdk for LLM, ASR (speech-to-text) and TTS (text-to-speech).
+// Powered by Groq AI API (Ultra-fast LLM inference) & ZAI Web Dev SDK.
 // All AI outputs are clearly labelled Actual / Estimated / Predicted / Demo.
 
 import ZAI from "z-ai-web-dev-sdk";
@@ -16,21 +16,67 @@ export interface ChatMsg {
   content: string;
 }
 
-/** Standard LLM completion. Returns plain text. */
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
+
+/**
+ * Primary LLM completion function using Groq AI (Ultra-fast 120B/Compound)
+ * with graceful fallback to ZAI SDK.
+ */
 export async function llmComplete(
   system: string,
   user: string,
-  opts?: { thinking?: boolean }
+  opts?: { thinking?: boolean; model?: string }
 ): Promise<string> {
-  const zai = await getZAI();
-  const completion = await zai.chat.completions.create({
-    messages: [
-      { role: "assistant", content: system },
-      { role: "user", content: user },
-    ],
-    thinking: { type: opts?.thinking ? "enabled" : "disabled" },
-  });
-  return completion.choices[0]?.message?.content ?? "";
+  // 1. Try Groq AI API first if key is present
+  if (GROQ_API_KEY) {
+    try {
+      const selectedModel = opts?.model || "openai/gpt-oss-120b";
+      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${GROQ_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: selectedModel,
+          messages: [
+            { role: "system", content: system },
+            { role: "user", content: user },
+          ],
+          temperature: 0.3,
+          max_tokens: 1500,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        let content = data.choices?.[0]?.message?.content ?? "";
+        // Clean any reasoning blocks if present
+        content = content.replace(/<Think>[\s\S]*?<\/Think>/gi, "").trim();
+        if (content) return content;
+      } else {
+        console.warn(`Groq API response error ${res.status}, falling back to ZAI SDK`);
+      }
+    } catch (err: any) {
+      console.warn("Groq API call failed, falling back to ZAI SDK:", err?.message);
+    }
+  }
+
+  // 2. Fallback to ZAI SDK
+  try {
+    const zai = await getZAI();
+    const completion = await zai.chat.completions.create({
+      messages: [
+        { role: "assistant", content: system },
+        { role: "user", content: user },
+      ],
+      thinking: { type: opts?.thinking ? "enabled" : "disabled" },
+    });
+    return completion.choices[0]?.message?.content ?? "";
+  } catch (err: any) {
+    console.error("ZAI SDK completion failed:", err);
+    throw new Error("AI Completion unavailable: " + (err?.message || "Internal error"));
+  }
 }
 
 /** Try to coerce an LLM response into a JSON object. */
@@ -81,9 +127,13 @@ Rules:
 
 /** Transcribe a base64-encoded audio clip to text (Tamil/English supported). */
 export async function transcribeAudio(base64Audio: string): Promise<string> {
-  const zai = await getZAI();
-  const response = await zai.audio.asr.create({ file_base64: base64Audio });
-  return response.text ?? "";
+  try {
+    const zai = await getZAI();
+    const response = await zai.audio.asr.create({ file_base64: base64Audio });
+    return response.text ?? "";
+  } catch {
+    return "";
+  }
 }
 
 /** Generate speech audio (WAV buffer) from text. Tamil script supported. */
