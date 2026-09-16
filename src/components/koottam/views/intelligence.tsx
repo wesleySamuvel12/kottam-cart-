@@ -313,7 +313,7 @@ export function CopilotView() {
         title="Business Copilot"
         subtitle="Ask Koottam AI — grounded in live platform data"
         icon={<Brain className="h-5 w-5" />}
-        right={<DataLabelBadge label="Mixed" />}
+        right={<DataLabelBadge label="Demo" />}
       />
       <Card className="flex flex-col h-[60vh] min-h-[420px]">
         <div ref={scrollRef} className="flex-1 overflow-y-auto koottam-scroll p-4 space-y-4">

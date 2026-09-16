@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     if (!text) return NextResponse.json({ error: "text required" }, { status: 400 });
 
     const buffer = await synthesizeSpeech(text, { voice, speed });
-    return new NextResponse(buffer, {
+    return new NextResponse(new Uint8Array(buffer), {
       status: 200,
       headers: {
         "Content-Type": "audio/wav",

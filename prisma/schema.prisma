@@ -146,6 +146,7 @@ model WhatsAppLog {
 model Farmer {
   id               String             @id @default(cuid())
   name             String
+  ta               String?            @default("") // Tamil Name e.g. ரமேஷ் குமார்
   phone            String             @unique // E.164 normalized phone e.g. 919876543201
   whatsappNumber   String?
   village          String             @default("Madurai")
@@ -157,6 +158,8 @@ model Farmer {
   rating           Float              @default(4.8)
   reliability      Float              @default(95.0)
   capacityKg       Float              @default(150.0)
+  distanceKm       Float              @default(10.0)
+  lastOrderDays    Int                @default(2)
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
   logs             CommunicationLog[]

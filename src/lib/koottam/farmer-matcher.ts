@@ -1,6 +1,7 @@
 // KottamCart — AI Farmer Matching & Requirement Message Generation Engine.
 
 import { db } from "../db";
+import { FARMERS } from "./data";
 
 export interface FarmerMatch {
   farmerId: string;
@@ -16,15 +17,23 @@ export interface FarmerMatch {
   reason: string;
 }
 
-/** Match best farmer from DB for a crop requirement */
+/** Match best farmer from DB (or sample data) for a crop requirement */
 export async function suggestBestFarmer(
   cropId: string,
   requiredKg: number,
   channel: "WHATSAPP" | "SMS"
 ): Promise<{ bestMatch: FarmerMatch | null; candidates: FarmerMatch[] }> {
-  const farmers = await db.farmer.findMany({
-    where: { status: "Active" },
-  });
+  let farmers: any[] = [];
+  try {
+    farmers = await db.farmer.findMany({
+      where: { status: "Active" },
+    });
+    if (!farmers || farmers.length === 0) {
+      farmers = FARMERS.filter((f) => f.status === "Active");
+    }
+  } catch {
+    farmers = FARMERS.filter((f) => f.status === "Active");
+  }
 
   const candidates: FarmerMatch[] = [];
 

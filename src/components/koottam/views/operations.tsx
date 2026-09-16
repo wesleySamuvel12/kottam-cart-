@@ -66,7 +66,7 @@ export function ControlTowerView({ locationId }: { locationId: string }) {
         title="Koottam AI Control Tower"
         subtitle="Supply-demand control tower with AI-generated executive summary"
         icon={<Brain className="h-5 w-5" />}
-        right={<DataLabelBadge label="Mixed" />}
+        right={<DataLabelBadge label="Demo" />}
       />
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <StatCard label="Demand" value={`${summary.demandKg.toLocaleString("en-IN")} kg`} icon={TrendingUp} accent="emerald" trend={{ dir: "up", pct: 9 }} dataLabel="Predicted" />
