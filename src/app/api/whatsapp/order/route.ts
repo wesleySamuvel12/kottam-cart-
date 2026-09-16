@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { PRODUCTS } from "@/lib/koottam/data";
+import { localWhatsAppOrdersStore, localWhatsAppLogsStore } from "@/app/api/whatsapp/admin/route";
 
 export const runtime = "nodejs";
 
 /**
- * POST Handler: Create a new Customer Order via WhatsApp Simulator/UI
+ * POST Handler: Create a new Customer Order via WhatsApp Simulator/UI with DB fallback
  */
 export async function POST(req: NextRequest) {
   try {
@@ -34,27 +35,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 1. Find or Create Customer
-    let customer = await db.customer.findFirst({
-      where: {
-        OR: [{ phone: normalizedPhone }, { phone: `91${normalizedPhone}` }],
-      },
-    });
-
-    if (!customer) {
-      customer = await db.customer.create({
-        data: {
-          name: customerName,
-          phone: normalizedPhone.length === 10 ? `91${normalizedPhone}` : normalizedPhone,
-          group: group,
-          locationId: "madurai",
-          status: "Active",
-        },
-      });
-    }
+    const fullPhone = normalizedPhone.length === 10 ? `91${normalizedPhone}` : normalizedPhone;
 
     // 2. Compute items details & pricing
     const orderItemsData: {
+      id?: string;
       productId: string;
       productName: string;
       quantity: number;
@@ -74,6 +59,7 @@ export async function POST(req: NextRequest) {
       subtotal += totalPrice;
 
       orderItemsData.push({
+        id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
         productId: prod.id,
         productName: prod.name,
         quantity: qty,
@@ -94,57 +80,114 @@ export async function POST(req: NextRequest) {
     const randomSuffix = Math.floor(10000 + Math.random() * 90000);
     const orderId = `KC-${randomSuffix}`;
 
-    // 3. Create Order & Items in DB
-    const order = await db.order.create({
-      data: {
+    let createdOrder: any = null;
+
+    try {
+      // 1. Find or Create Customer in DB
+      let customer = await db.customer.findFirst({
+        where: {
+          OR: [{ phone: normalizedPhone }, { phone: fullPhone }],
+        },
+      });
+
+      if (!customer) {
+        customer = await db.customer.create({
+          data: {
+            name: customerName,
+            phone: fullPhone,
+            group: group,
+            locationId: "madurai",
+            status: "Active",
+          },
+        });
+      }
+
+      // 3. Create Order & Items in DB
+      createdOrder = await db.order.create({
+        data: {
+          id: orderId,
+          customerId: customer.id,
+          customerPhone: customer.phone,
+          status: "Confirmed",
+          subtotal: subtotal,
+          deliveryCharge: deliveryCharge,
+          totalAmount: totalAmount,
+          pickupLocation: pickupLocation,
+          paymentStatus: "Pending",
+          items: {
+            create: orderItemsData,
+          },
+        },
+        include: {
+          customer: true,
+          items: true,
+        },
+      });
+
+      // Log incoming WhatsApp transaction message in DB
+      const itemSummary = orderItemsData
+        .map((i) => `${i.productName} ${i.quantity}${i.unit}`)
+        .join(", ");
+
+      await db.whatsAppLog.create({
+        data: {
+          messageId: `wamid.HBgL${Date.now()}`,
+          phone: customer.phone,
+          customerId: customer.id,
+          direction: "INBOUND",
+          type: "text",
+          body: `🛒 *New WhatsApp Order Received*\nCustomer: ${customer.name}\nItems: ${itemSummary}\nTotal: ₹${totalAmount}\nStatus: Confirmed`,
+          status: "Read",
+        },
+      });
+    } catch (dbErr: any) {
+      console.warn("DB offline, creating order in-memory store:", dbErr?.message);
+      const mockCustomerId = `c_${Date.now()}`;
+      const mockCustomer = {
+        id: mockCustomerId,
+        name: customerName,
+        phone: fullPhone,
+        group: group,
+      };
+
+      createdOrder = {
         id: orderId,
-        customerId: customer.id,
-        customerPhone: customer.phone,
+        customerId: mockCustomerId,
+        customerPhone: fullPhone,
         status: "Confirmed",
         subtotal: subtotal,
         deliveryCharge: deliveryCharge,
         totalAmount: totalAmount,
         pickupLocation: pickupLocation,
         paymentStatus: "Pending",
-        items: {
-          create: orderItemsData,
-        },
-      },
-      include: {
-        customer: true,
-        items: true,
-      },
-    });
+        createdAt: new Date().toISOString(),
+        customer: mockCustomer,
+        items: orderItemsData,
+      };
 
-    // 4. Log incoming WhatsApp transaction message
-    const itemSummary = orderItemsData
-      .map((i) => `${i.productName} ${i.quantity}${i.unit}`)
-      .join(", ");
-    
-    await db.whatsAppLog.create({
-      data: {
+      localWhatsAppOrdersStore.unshift(createdOrder);
+
+      const itemSummary = orderItemsData
+        .map((i) => `${i.productName} ${i.quantity}${i.unit}`)
+        .join(", ");
+
+      localWhatsAppLogsStore.unshift({
+        id: `wal_${Date.now()}`,
         messageId: `wamid.HBgL${Date.now()}`,
-        phone: customer.phone,
-        customerId: customer.id,
+        phone: fullPhone,
+        customerId: mockCustomerId,
         direction: "INBOUND",
         type: "text",
-        body: `🛒 *New WhatsApp Order Received*\nCustomer: ${customer.name}\nItems: ${itemSummary}\nTotal: ₹${totalAmount}\nStatus: Confirmed`,
+        body: `🛒 *New WhatsApp Order Received*\nCustomer: ${customerName}\nItems: ${itemSummary}\nTotal: ₹${totalAmount}\nStatus: Confirmed`,
         status: "Read",
-      },
-    });
-
-    // Update customer stats
-    await db.customer.update({
-      where: { id: customer.id },
-      data: {
-        totalOrders: { increment: 1 },
-        lastOrderDays: 0,
-      },
-    });
+        createdAt: new Date().toISOString(),
+        customer: mockCustomer,
+      });
+    }
 
     return NextResponse.json({
       success: true,
-      order,
+      order: createdOrder,
     });
   } catch (err: any) {
     console.error("Failed to create WhatsApp order:", err);
@@ -170,33 +213,61 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    const order = await db.order.findUnique({
-      where: { id: orderId },
-      include: { customer: true },
-    });
+    let updatedOrder: any = null;
 
-    if (!order) {
-      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    try {
+      const order = await db.order.findUnique({
+        where: { id: orderId },
+        include: { customer: true },
+      });
+
+      if (order) {
+        updatedOrder = await db.order.update({
+          where: { id: orderId },
+          data: { status },
+          include: { customer: true, items: true },
+        });
+
+        // Record outbound WhatsApp notification for status change
+        await db.whatsAppLog.create({
+          data: {
+            messageId: `wamid.STATUS_${Date.now()}`,
+            phone: order.customerPhone,
+            customerId: order.customerId,
+            direction: "OUTBOUND",
+            type: "status",
+            body: `🚚 *Order Update (${orderId})*\nStatus: ${status}\nLocation: ${order.pickupLocation}`,
+            status: "Sent",
+          },
+        });
+      }
+    } catch (dbErr: any) {
+      console.warn("DB offline, updating order status in-memory store:", dbErr?.message);
     }
 
-    const updatedOrder = await db.order.update({
-      where: { id: orderId },
-      data: { status },
-      include: { customer: true, items: true },
-    });
+    // Always update local memory store as well
+    const localOrder = localWhatsAppOrdersStore.find((o) => o.id === orderId);
+    if (localOrder) {
+      localOrder.status = status;
+      if (!updatedOrder) updatedOrder = localOrder;
 
-    // Record outbound WhatsApp notification for status change
-    await db.whatsAppLog.create({
-      data: {
+      localWhatsAppLogsStore.unshift({
+        id: `wal_${Date.now()}`,
         messageId: `wamid.STATUS_${Date.now()}`,
-        phone: order.customerPhone,
-        customerId: order.customerId,
+        phone: localOrder.customerPhone,
+        customerId: localOrder.customerId,
         direction: "OUTBOUND",
         type: "status",
-        body: `🚚 *Order Update (${orderId})*\nStatus: ${status}\nLocation: ${order.pickupLocation}`,
+        body: `🚚 *Order Update (${orderId})*\nStatus: ${status}\nLocation: ${localOrder.pickupLocation}`,
         status: "Sent",
-      },
-    });
+        createdAt: new Date().toISOString(),
+        customer: localOrder.customer,
+      });
+    }
+
+    if (!updatedOrder) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
 
     return NextResponse.json({
       success: true,
